@@ -1,0 +1,389 @@
+from music21 import *
+
+import ast
+import re
+import os
+import numpy as np
+
+
+def read_array(array_file_path):
+    """
+    :param array_file_path: exact file.txt, [[1,2,3],[1,3]]\n
+    :return: a list 'res'
+    """
+    # open file and read the content in a list
+    with open(array_file_path) as f:
+        lines = f.read().splitlines()
+    res = []
+
+    for i in range(len(lines)):
+        res.append(ast.literal_eval(lines[i]))
+
+    return res
+
+
+def find_set(file_path, is_deepbach=False):
+    n = open(file_path, mode='r')
+    c = converter.parse(file_path, format='musicxml')
+
+    # find Soprano part
+    for part in range(len(c.elements)):
+        try:
+            if c.elements[part].pitches:
+                break
+        except AttributeError:
+            continue
+
+    # find all Soprano pitches
+    arr_pitches = list()
+    midi_arr_pitches = list()
+    for thisNote in c.elements[part].pitches:
+        r = re.split(r'(\d)', str(thisNote))
+        arr_pitches.append(r[0])
+        midi_arr_pitches.append(str(thisNote))
+        # print(thisNote)
+
+    print('***Before***', midi_arr_pitches)
+    midi_arr_pitches = note_to_midinum(midi_arr_pitches)
+    print('***After***', midi_arr_pitches)
+
+    if is_deepbach:
+        # find segment with measure
+        n_file = re.split(r'/measure', str(n.read()))
+    else:
+        # find segment with fermata
+        n_file = re.split('fermata', str(n.read()))
+
+    # each segment of Soprano
+    each_len = []
+    re_note = r'<step>(.*?)</step>'
+    for x in range(len(n_file)):
+        if len(re.findall(re_note, n_file[x])) > 20:
+            break
+        each_len.append(len(re.findall(re_note, n_file[x])))
+
+    if is_deepbach:
+        tmp_lst = []
+        each_len = each_len[:12]
+        for x in range(int(len(each_len) / 2)):
+            tmp_lst.append(each_len[x * 2] + each_len[x * 2 + 1])
+        each_len = tmp_lst[:]
+
+    # accumulate each num of each segment
+    for num in range(len(each_len)):
+        if num == 0:
+            continue
+        each_len[num] += each_len[num - 1]
+
+    clu = []
+    for num in range(len(each_len)):
+        if num == 0:
+            clu.append(arr_pitches[:each_len[0]])
+            continue
+        clu.append(arr_pitches[each_len[num - 1]:each_len[num]])
+
+    midi_num = []
+    for num in range(len(each_len)):
+        if num == 0:
+            midi_num.append(midi_arr_pitches[:each_len[0]])
+            continue
+        midi_num.append(midi_arr_pitches[each_len[num - 1]:each_len[num]])
+
+    # return notes cluster
+    return {'clu': clu, 'midi_num': midi_num}
+
+
+def note_to_midinum(note_array):
+    num_array = []
+    tran_dict = {
+        'A0': '21',
+        'A#0': '22', 'B-0': '22',
+        'B0': '23', 'C-0': '23',
+
+        'C1': '24', 'B#1': '24',
+        'C#1': '25', 'D-1': '25',
+        'D1': '26',
+        'D#1': '27', 'E-1': '27',
+        'E1': '28', 'F-1': '28',
+        'F1': '29', 'E#1': '29',
+        'F#1': '30', 'G-1': '30',
+        'G1': '31',
+        'G#1': '32', 'A-1': '32',
+        'A1': '33',
+        'A#1': '34', 'B-1': '34',
+        'B1': '35', 'C-1': '35',
+
+        'C2': '36', 'B#2': '36',
+        'C#2': '37', 'D-2': '37',
+        'D2': '38',
+        'D#2': '39', 'E-2': '39',
+        'E2': '40', 'F-2': '40',
+        'F2': '41', 'E#2': '41',
+        'F#2': '42', 'G-2': '42',
+        'G2': '43',
+        'G#2': '44', 'A-2': '43',
+        'A2': '45',
+        'A#2': '46', 'B-2': '44',
+        'B2': '47', 'C-2': '45',
+
+        'C3': '48', 'B#3': '48',
+        'C#3': '49', 'D-3': '49',
+        'D3': '50',
+        'D#3': '51', 'E-3': '51',
+        'E3': '52', 'F-3': '52',
+        'F3': '53', 'E#3': '53',
+        'F#3': '54', 'G-3': '54',
+        'G3': '55',
+        'G#3': '56', 'A-3': '56',
+        'A3': '57',
+        'A#3': '58', 'B-3': '58',
+        'B3': '59', 'C-3': '59',
+
+        'C4': '60', 'B#4': '60',
+        'C#4': '61', 'D-4': '61',
+        'D4': '62',
+        'D#4': '63', 'E-4': '63',
+        'E4': '64', 'F-4': '64',
+        'F4': '65', 'E#4': '65',
+        'F#4': '66', 'G-4': '66',
+        'G4': '67',
+        'G#4': '68', 'A-4': '68',
+        'A4': '69',
+        'A#4': '70', 'B-4': '70',
+        'B4': '71', 'C-4': '71',
+
+        'C5': '72', 'B#5': '72',
+        'C#5': '73', 'D-5': '73',
+        'D5': '74',
+        'D#5': '75', 'E-5': '75',
+        'E5': '76', 'F-5': '76',
+        'F5': '77', 'E#5': '77',
+        'F#5': '78', 'G-5': '78',
+        'G5': '79',
+        'G#5': '80', 'A-5': '80',
+        'A5': '81',
+        'A#5': '82', 'B-5': '82',
+        'B5': '83', 'C-5': '83',
+
+        'C6': '84', 'B#6': '84',
+        'C#6': '85', 'D-6': '85',
+        'D6': '86',
+        'D#6': '87', 'E-6': '87',
+        'E6': '88', 'F-6': '88',
+        'F6': '89', 'E#6': '89',
+        'F#6': '90', 'G-6': '90',
+        'G6': '91',
+        'G#6': '92', 'A-6': '92',
+        'A6': '93',
+        'A#6': '94', 'B-6': '94',
+        'B6': '95', 'C-6': '95',
+
+        'C7': '96', 'B#7': '96',
+        'C#7': '97', 'D-7': '97',
+        'D7': '98',
+        'D#7': '99', 'E-7': '99',
+        'E7': '100', 'F-7': '100',
+        'F7': '101', 'E#7': '101',
+        'F#7': '102', 'G-7': '102',
+        'G7': '103',
+        'G#7': '104', 'A-7': '104',
+        'A7': '105',
+        'A#7': '106', 'B-7': '106',
+        'B7': '107', 'C-7': '107',
+
+        'C8': '108', 'B#8': '108'
+    }
+
+    for x, y in enumerate(note_array):
+        # create new array with simple midi num
+        num_array.append(int(tran_dict[y]))
+
+    return num_array
+
+
+def note_to_num(note_array):
+    original_set = []
+    for _ in note_array:
+        # replace note to simple num
+        tran_dict = {'C': '0', 'B#': '0',
+                     'C#': '1', 'D-': '1',
+                     'D': '2',
+                     'D#': '3', 'E-': '3',
+                     'E': '4', 'F-': '4',
+                     'F': '5', 'E#': '5',
+                     'F#': '6', 'G-': '6',
+                     'G': '7',
+                     'G#': '8', 'A-': '8',
+                     'A': '9',
+                     'A#': '10', 'B-': '10',
+                     'B': '11', 'C-': '11'}
+        num_array = [tran_dict[i] if i in tran_dict else i for i in _]
+
+        # sort int(note_array) and remove duplicates
+        note_set = sorted(np.array(num_array).astype(np.int))
+        note_set = list(dict.fromkeys(note_set))
+        original_set.append(note_set)
+
+    return original_set
+
+
+def rotate(lst, x):
+    lst[:] = lst[-x:] + lst[:-x]
+
+    return lst
+
+
+def round1(omg):
+    min_bi = 20
+    rotate_num = 0
+    for j, num in enumerate(range(len(omg))):
+        diff_bi = omg[-1] - omg[0] if omg[-1] - omg[0] > 0 else omg[-1] - omg[0] + 12
+        if diff_bi < min_bi:
+            min_bi = diff_bi
+            rotate_num = num
+        rotate(omg, 1)
+    round1_ar = rotate(omg, rotate_num)
+    x = round1_ar[0]
+    for j in range(len(round1_ar)):
+        round1_ar[j] -= x
+        if round1_ar[j] < 0:
+            round1_ar[j] += 12
+
+    return round1_ar
+
+
+def round2(omg):
+    for i in range(len(omg)):
+        omg[i] = 12 - omg[i]
+    if omg[0] == 12:
+        omg[0] = 0
+    round2_ar = round1(list(reversed(omg)))
+
+    return round2_ar
+
+
+def find_norm(lst):
+    winner = []
+    round1_ar = round1(lst)[:]
+    round2_ar = round2(round1(lst))[:]
+    for i in range(len(lst)):
+        if round1_ar[i] < round2_ar[i]:
+            winner = round1_ar[:]
+        else:
+            winner = round2_ar[:]
+
+    return winner
+
+
+def levenshtein(seq1, seq2):
+    size_x = len(seq1) + 1
+    size_y = len(seq2) + 1
+    matrix = np.zeros((size_x, size_y))
+    for x in range(size_x):
+        matrix[x, 0] = x
+    for y in range(size_y):
+        matrix[0, y] = y
+
+    for x in range(1, size_x):
+        for y in range(1, size_y):
+            if seq1[x - 1] == seq2[y - 1]:
+                matrix[x, y] = min(
+                    matrix[x - 1, y] + 1,
+                    matrix[x - 1, y - 1],
+                    matrix[x, y - 1] + 1
+                )
+            else:
+                matrix[x, y] = min(
+                    matrix[x - 1, y] + 1,
+                    matrix[x - 1, y - 1] + 1,
+                    matrix[x, y - 1] + 1
+                )
+    # print(matrix)
+    lensum = size_x + size_y
+    return (lensum - matrix[size_x - 1, size_y - 1]) / lensum
+
+
+def jaccard_similarity(list1, list2):
+    intersection = len(list(set(list1).intersection(list2)))
+    union = (len(list1) + len(list2)) - intersection
+    return float(intersection) / union
+
+
+def c_count_levenshtein(ar, do_print=False):
+    s_l, s_j = 0, 0
+    count = 0
+    for x in range(len(ar)-1):
+        for y in range(len(ar)):
+            if y > x:
+                if do_print:
+                    print(ar[x], ' VS ', ar[y], '\nLevenshtein Distance Similarity: ', round(levenshtein(ar[x], ar[y]), 2))
+                    print('\033[33mJaccard Similarity : ', round(jaccard_similarity(ar[x], ar[y]), 2), '\033[m')
+                count += 1
+                s_l += levenshtein(ar[x], ar[y])
+                s_j += jaccard_similarity(ar[x], ar[y])
+    aver_l = s_l/count
+    aver_j = s_j/count
+
+    return {'aver_l': aver_l, 'aver_j': aver_j, 'count': count, 's_l': s_l, 's_j': s_j}
+
+
+def happy_go(path, is_deepbach):
+    # path = r'.\DeepBach_Scores'  #  .\JSB .\DeepBach_Scores
+    dirs = os.listdir(path)
+    similarity_count = 0
+    total_score_l, total_score_j = 0, 0
+    all_all_set = []
+    # is_deepbach = bool
+    # if 'deepbach' in path:
+    #     is_deepbach = True
+    with open('listfile.txt', 'w') as try_to_write_file:
+        for file in dirs:
+            if file.endswith('musicxml'):
+                # use purple fonts color <3
+                print('\n\033[1;35m' + os.path.join(path, file) + '\033[m')
+                ar_each_chorale = []
+                all_find_set = find_set(os.path.join(path, file), is_deepbach=is_deepbach)
+                cluster = all_find_set['clu']
+                # write each segment [67,67,74,71,69,67,67,69,71,69]
+                # midinum = all_find_set['midi_num']
+                # try_to_write_file.writelines(str(midinum)+'\n')
+                # print(midinum)
+                for i in note_to_num(cluster):
+                    # write soprano notes [1,1,5,5,6,6,5]
+                    # try_to_write_file.writelines(str(i) + '\n')
+                    ar_each_chorale.append(find_norm(i))
+                    for _ in ar_each_chorale:
+                        all_all_set.append(_)
+                try:
+                    similarity = c_count_levenshtein(ar_each_chorale, True)
+                    # write ar_each_chorale [2,3,5,6,7]
+                    # try_to_write_file.writelines(str(ar_each_chorale)+'\n')
+                    print('Aver Leven : ', round(similarity['aver_l'], 2))
+                    print('Aver Jaccard : ', round(similarity['aver_j'], 2))
+                    total_score_l += similarity['s_l']
+                    total_score_j += similarity['s_j']
+                    similarity_count += similarity['count']
+                except ZeroDivisionError:
+                    continue
+    # print(all_all_set)
+    all_set_dict = {}
+    for key in all_all_set:
+        all_set_dict[str(key)] = all_set_dict.get(str(key), 0) + 1
+    # print(all_set_dict)
+    # print(sorted(all_set_dict.items(), key=lambda x:x))
+
+    items = all_set_dict.items()
+    for _ in sorted(items, key=lambda item: item[1], reverse=True):
+        print(_)
+
+    print('L', round(total_score_l/similarity_count, 2))
+    print('J', round(total_score_j/similarity_count, 2))
+
+
+def main():
+    happy_go('./DeepBach_Scores', True)
+    # happy_go('./JSB', False)
+
+
+if __name__ == '__main__':
+    main()
