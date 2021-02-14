@@ -1,0 +1,48 @@
+from noteset import read_array
+import random as r
+
+res_bach = read_array('Bach364.txt')
+res_deepbach = read_array('Deepbach300.txt')
+res_bach_midi = read_array('Bach364_midi.txt')
+res_deepbach_midi = read_array('Deepbach300_midi.txt')
+
+# print(res_bach[1])
+# print(res_deepbach[1])
+# print(res_bach_midi[0][0])
+# print(res_deepbach_midi[0][0])
+
+up_and_down = []
+inside = []
+outside = []
+
+for i in res_bach_midi:
+    for j in i:
+        # soprano set
+        # print(j)
+        for num in range(len(j)-1):
+            if j[num+1] > j[num]:
+                inside += '+'
+            elif j[num+1] == j[num]:
+                inside += 'o'
+            else:
+                inside += '-'
+        # o, +, -
+        # print(inside)
+        outside.append(inside)
+        inside = []
+# print(outside[r.randint(0, len(outside))])
+# print(outside[r.randint(0, len(outside))])
+# print(outside[r.randint(0, len(outside))])
+# print(outside[r.randint(0, len(outside))])
+
+# print(len(res_bach))
+
+for i in range(1000):
+    try:
+        print(outside[r.randint(0, len(outside))])
+        print(r.sample(res_bach[r.randint(0, len(res_bach))], 1)[0], '\n')
+    except IndexError:
+        print('***IndexError***')
+        print(outside[r.randint(0, len(outside))])
+        print(r.sample(res_bach[r.randint(0, len(res_bach))], 1)[0], '\n')
+# print(res_bach[1][r.randint(0, len(res_bach))])
