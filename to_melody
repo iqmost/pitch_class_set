@@ -1,0 +1,21 @@
+from music21 import *
+
+def xml_to_melody(file_path):
+    # C#3 - A5
+
+    # file_path = 'Bee.musicxml'
+    n = open(file_path, mode='r')
+    c = converter.parse(file_path, format='musicxml')
+
+    result = []
+    for element in c.flat.notes:
+        result.append(element.pitch.name + str(element.pitch.octave))
+        semiquaverLength = int(element.duration.quarterLength * 4)
+        for _ in range(semiquaverLength - 1):
+            result.append('__')
+        # note name, octave, quarterLength
+        # print(element.pitch.name, element.pitch.octave, element.duration.quarterLength)
+        
+    return result
+
+print(xml_to_melody('Bee.musicxml'))
